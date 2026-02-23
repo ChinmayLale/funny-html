@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nuclear Fission Chain Reaction</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: radial-gradient(circle, #001122, #000000);
+            font-family: 'Courier New', monospace;
+            color: #00ff88;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #canvas {
+            display: block;
+            border: 2px solid #00ff88;
+            box-shadow: 0 0 30px #00ff88;
+            background: radial-gradient(circle, #001a2e, #000811);
+        }
+
+        .controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #00ff88;
+        }
+
+        .control-group {
+            margin-bottom: 10px;
+        }
+
+        button {
+            background: linear-gradient(45deg, #001122, #003344);
+            color: #00ff88;
+            border: 1px solid #00ff88;
+            padding: 8px 16px;
+            margin: 2px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            background: linear-gradient(45deg, #003344, #005566);
+            box-shadow: 0 0 10px #00ff88;
+        }
+
+        .stats {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #00ff88;
+            min-width: 200px;
+        }
+
+        .energy-bar {
+            width: 100%;
+            height: 20px;
+            background: #001122;
+            border: 1px solid #00ff88;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        .energy-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff88, #ffff00, #ff4400);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #00ff88;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 10px;
+            border: 1px solid #333;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas" width="1200" height="800"></canvas>
+    
+    <div class="controls">
+        <div class="control-group">
+            <button onclick="startReaction()">Start Chain Reaction</button>
+            <button onclick="stopReaction()">Stop</button>
+            <button onclick="resetSimulation()">Reset</button>
+        </div>
+        <div class="control-group">
+            <button onclick="addNeutron()">Add Neutron</button>
+            <button onclick="toggleCritical()">Toggle Critical Mass</button>
+        </div>
+    </div>
+
+    <div class="stats">
+        <div><strong>Nuclear Reactor Status</strong></div>
+        <div>Nuclei: <span id="nucleiCount">0</span></div>
+        <div>Neutrons: <span id="neutronCount">0</span></div>
+        <div>Fissions: <span id="fissionCount">0</span></div>
+        <div>Energy Released:</div>
+        <div class="energy-bar">
+            <div class="energy-fill" id="energyFill"></div>
+        </div>
+        <div>Critical: <span id="criticalStatus">NO</span></div>
+    </div>
+
+    <div class="legend">
+        <div><strong>Particle Legend</strong></div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #4a90e2;"></div>
+            <span>U-235 Nucleus</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #ff6b6b;"></div>
+            <span>Neutron</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #f39c12;"></div>
+            <span>Fission Fragment</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #2ecc71;"></div>
+            <span>Gamma Ray</span>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        let particles = [];
+        let animationId;
+        let isRunning = false;
+        let isCritical = false;
+        let totalEnergy = 0;
+        let fissionCount = 0;
+
+        class Particle {
+            constructor(x, y, type, vx = 0, vy = 0, energy = 1) {
+                this.x = x;
+                this.y = y;
+                this.type = type; // 'nucleus', 'neutron', 'fragment', 'gamma'
+                this.vx = vx;
+                this.vy = vy;
+                this.energy = energy;
+                this.size = this.getSize();
+                this.color = this.getColor();
+                this.life = 1.0;
+                this.mass = this.getMass();
+                this.crossSection = this.getCrossSection();
+            }
+
+            getSize() {
+                switch(this.type) {
+                    case 'nucleus': return 8;
+                    case 'neutron': return 4;
+                    case 'fragment': return 6;
+                    case 'gamma': return 2;
+                    default: return 4;
+                }
+            }
+
+            getColor() {
+                switch(this.type) {
+                    case 'nucleus': return '#4a90e2';
+                    case 'neutron': return '#ff6b6b';
+                    case 'fragment': return '#f39c12';
+                    case 'gamma': return '#2ecc71';
+                    default: return '#ffffff';
+                }
+            }
+
+            getMass() {
+                switch(this.type) {
+                    case 'nucleus': return 235; // U-235
+                    case 'neutron': return 1;
+                    case 'fragment': return 120; // Average fragment mass
+                    case 'gamma': return 0;
+                    default: return 1;
+                }
+            }
+
+            getCrossSection() {
+                switch(this.type) {
+                    case 'nucleus': return 15; // Fission cross section
+                    case 'neutron': return 2;
+                    case 'fragment': return 5;
+                    case 'gamma': return 1;
+                    default: return 2;
+                }
+            }
+
+            update() {
+                // Apply physics
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Apply drag for realistic motion
+                this.vx *= 0.995;
+                this.vy *= 0.995;
+
+                // Boundary conditions
+                if (this.x < 0 || this.x > canvas.width) this.vx *= -0.8;
+                if (this.y < 0 || this.y > canvas.height) this.vy *= -0.8;
+                
+                // Keep particles in bounds
+                this.x = Math.max(this.size, Math.min(canvas.width - this.size, this.x));
+                this.y = Math.max(this.size, Math.min(canvas.height - this.size, this.y));
+
+                // Decay gamma rays and fragments
+                if (this.type === 'gamma' || this.type === 'fragment') {
+                    this.life -= 0.005;
+                }
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.life;
+                
+                // Draw particle with glow effect
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = this.color;
+                
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                
+                // Draw nucleus structure for U-235
+                if (this.type === 'nucleus') {
+                    ctx.shadowBlur = 5;
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                    
+                    // Draw protons and neutrons representation
+                    for (let i = 0; i < 8; i++) {
+                        const angle = (i / 8) * Math.PI * 2;
+                        const px = this.x + Math.cos(angle) * 3;
+                        const py = this.y + Math.sin(angle) * 3;
+                        ctx.beginPath();
+                        ctx.arc(px, py, 1, 0, Math.PI * 2);
+                        ctx.fillStyle = i % 2 ? '#ff4444' : '#4444ff';
+                        ctx.fill();
+                    }
+                }
+
+                // Draw energy trails for fast particles
+                if (this.energy > 2) {
+                    const trailLength = Math.min(this.energy * 2, 20);
+                    ctx.beginPath();
+                    ctx.moveTo(this.x, this.y);
+                    ctx.lineTo(this.x - this.vx * trailLength, this.y - this.vy * trailLength);
+                    ctx.strokeStyle = this.color;
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+
+                ctx.restore();
+            }
+        }
+
+        function initializeNuclei() {
+            particles = [];
+            const gridSize = 80;
+            const offsetX = (canvas.width % gridSize) / 2;
+            const offsetY = (canvas.height % gridSize) / 2;
+            
+            for (let x = offsetX; x < canvas.width; x += gridSize) {
+                for (let y = offsetY; y < canvas.height; y += gridSize) {
+                    if (Math.random() < 0.7) { // 70% chance for nucleus placement
+                        particles.push(new Particle(x, y, 'nucleus'));
+                    }
+                }
+            }
+        }
+
+        function checkCollisions() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p1 = particles[i];
+                
+                for (let j = i - 1; j >= 0; j--) {
+                    const p2 = particles[j];
+                    const dx = p1.x - p2.x;
+                    const dy = p1.y - p2.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    // Check for neutron-nucleus collision
+                    if (distance < p1.crossSection + p2.crossSection) {
+                        if ((p1.type === 'neutron' && p2.type === 'nucleus') ||
+                            (p1.type === 'nucleus' && p2.type === 'neutron')) {
+                            
+                            // Fission occurs with probability based on neutron energy
+                            const neutron = p1.type === 'neutron' ? p1 : p2;
+                            const nucleus = p1.type === 'nucleus' ? p1 : p2;
+                            
+                            if (Math.random() < 0.3 + neutron.energy * 0.1) {
+                                performFission(nucleus.x, nucleus.y);
+                                
+                                // Remove the fissioned nucleus and absorbed neutron
+                                particles.splice(Math.max(i, j), 1);
+                                particles.splice(Math.min(i, j), 1);
+                                return; // Restart collision detection
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        function performFission(x, y) {
+            fissionCount++;
+            totalEnergy += 200; // 200 MeV per fission
+            
+            // Create fission fragments
+            const angle1 = Math.random() * Math.PI * 2;
+            const angle2 = angle1 + Math.PI + (Math.random() - 0.5) * 0.5;
+            
+            // Fragment 1 (e.g., Ba-144)
+            particles.push(new Particle(
+                x, y, 'fragment',
+                Math.cos(angle1) * 3,
+                Math.sin(angle1) * 3,
+                5
+            ));
+            
+            // Fragment 2 (e.g., Kr-89)
+            particles.push(new Particle(
+                x, y, 'fragment',
+                Math.cos(angle2) * 3,
+                Math.sin(angle2) * 3,
+                5
+            ));
+            
+            // Release 2-3 neutrons
+            const neutronCount = 2 + Math.floor(Math.random() * 2);
+            for (let i = 0; i < neutronCount; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 2 + Math.random() * 3;
+                particles.push(new Particle(
+                    x + Math.random() * 10 - 5,
+                    y + Math.random() * 10 - 5,
+                    'neutron',
+                    Math.cos(angle) * speed,
+                    Math.sin(angle) * speed,
+                    2 + Math.random() * 2
+                ));
+            }
+            
+            // Release gamma rays
+            for (let i = 0; i < 3; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 8 + Math.random() * 4;
+                particles.push(new Particle(
+                    x, y, 'gamma',
+                    Math.cos(angle) * speed,
+                    Math.sin(angle) * speed,
+                    10
+                ));
+            }
+            
+            // Visual explosion effect
+            createExplosion(x, y);
+        }
+
+        function createExplosion(x, y) {
+            // Create bright flash
+            ctx.save();
+            ctx.globalCompositeOperation = 'screen';
+            const gradient = ctx.createRadialGradient(x, y, 0, x, y, 50);
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
+            gradient.addColorStop(0.5, 'rgba(255, 200, 0, 0.4)');
+            gradient.addColorStop(1, 'rgba(255, 100, 0, 0)');
+            
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(x, y, 50, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function updateStats() {
+            const nucleiCount = particles.filter(p => p.type === 'nucleus').length;
+            const neutronCount = particles.filter(p => p.type === 'neutron').length;
+            
+            document.getElementById('nucleiCount').textContent = nucleiCount;
+            document.getElementById('neutronCount').textContent = neutronCount;
+            document.getElementById('fissionCount').textContent = fissionCount;
+            document.getElementById('criticalStatus').textContent = isCritical ? 'YES' : 'NO';
+            
+            const energyPercent = Math.min(totalEnergy / 1000, 1) * 100;
+            document.getElementById('energyFill').style.width = energyPercent + '%';
+        }
+
+        function animate() {
+            ctx.fillStyle = 'rgba(0, 8, 17, 0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Update particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const particle = particles[i];
+                particle.update();
+                particle.draw();
+                
+                // Remove dead particles
+                if (particle.life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+            
+            // Check for collisions
+            checkCollisions();
+            
+            // Maintain critical mass if enabled
+            if (isCritical && Math.random() < 0.02) {
+                addNeutron();
+            }
+            
+            updateStats();
+            
+            if (isRunning) {
+                animationId = requestAnimationFrame(animate);
+            }
+        }
+
+        function startReaction() {
+            if (!isRunning) {
+                isRunning = true;
+                animate();
+            }
+        }
+
+        function stopReaction() {
+            isRunning = false;
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+            }
+        }
+
+        function resetSimulation() {
+            stopReaction();
+            totalEnergy = 0;
+            fissionCount = 0;
+            initializeNuclei();
+            updateStats();
+        }
+
+        function addNeutron() {
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * canvas.height;
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 2 + Math.random() * 2;
+            
+            particles.push(new Particle(
+                x, y, 'neutron',
+                Math.cos(angle) * speed,
+                Math.sin(angle) * speed,
+                1 + Math.random()
+            ));
+        }
+
+        function toggleCritical() {
+            isCritical = !isCritical;
+        }
+
+        // Initialize
+        initializeNuclei();
+        updateStats();
+        
+        // Auto-start the simulation
+        setTimeout(() => {
+            startReaction();
+            addNeutron();
+        }, 1000);
+    </script>
+</body>
+</html>

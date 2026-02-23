@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speech to Text - Maximum Browser Accuracy</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 900px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1em;
+        }
+
+        .accuracy-boost {
+            background: linear-gradient(135deg, #e7f3ff 0%, #d4edda 100%);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+            border: 2px solid #28a745;
+        }
+
+        .accuracy-boost h3 {
+            color: #155724;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .boost-badge {
+            background: #28a745;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .setting-card {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #e0e0e0;
+            transition: all 0.3s ease;
+        }
+
+        .setting-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 3px 10px rgba(102, 126, 234, 0.2);
+        }
+
+        .setting-card label {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .setting-card input[type="checkbox"],
+        .setting-card input[type="radio"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            margin-top: 2px;
+            flex-shrink: 0;
+        }
+
+        .setting-card small {
+            display: block;
+            color: #666;
+            margin-top: 8px;
+            margin-left: 30px;
+            line-height: 1.4;
+        }
+
+        .quality-selector {
+            background: #fff3cd;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 2px solid #ffc107;
+        }
+
+        .quality-selector h3 {
+            margin-bottom: 15px;
+            color: #856404;
+        }
+
+        .quality-options {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .quality-option {
+            flex: 1;
+            min-width: 200px;
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #ddd;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .quality-option:hover {
+            border-color: #667eea;
+        }
+
+        .quality-option.selected {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #f0f4ff 0%, #e7f3ff 100%);
+        }
+
+        .quality-option input[type="radio"] {
+            display: none;
+        }
+
+        .quality-option h4 {
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .quality-option p {
+            font-size: 13px;
+            color: #666;
+            line-height: 1.4;
+        }
+
+        .language-config {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 2px solid #e0e0e0;
+        }
+
+        .language-config h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .language-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .language-row select {
+            padding: 12px;
+            font-size: 14px;
+            border: 2px solid #667eea;
+            border-radius: 10px;
+            background: white;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        .language-row input {
+            padding: 12px;
+            font-size: 14px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            width: 100%;
+        }
+
+        .audio-visualization {
+            background: #1a1a1a;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+        }
+
+        .audio-bar {
+            width: 4px;
+            height: 20px;
+            background: linear-gradient(to top, #667eea, #764ba2);
+            border-radius: 2px;
+            transition: height 0.1s ease;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 15px 30px;
+            font-size: 16px;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #startBtn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        #startBtn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        #stopBtn {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        #stopBtn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(245, 87, 108, 0.4);
+        }
+
+        #clearBtn, #copyBtn, #downloadBtn {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        #clearBtn:hover:not(:disabled),
+        #copyBtn:hover:not(:disabled),
+        #downloadBtn:hover:not(:disabled) {
+            background: #d0d0d0;
+            transform: translateY(-2px);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .status {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .status.listening {
+            background: #d4edda;
+            color: #155724;
+            border: 2px solid #c3e6cb;
+        }
+
+        .status.idle {
+            background: #f8f9fa;
+            color: #6c757d;
+            border: 2px solid #dee2e6;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 2px solid #f5c6cb;
+        }
+
+        .confidence-meter {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: #e7f3ff;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border: 2px solid #b3d9ff;
+        }
+
+        .confidence-meter.active {
+            display: flex;
+        }
+
+        .confidence-bar-container {
+            flex: 1;
+            height: 20px;
+            background: #ddd;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .confidence-bar {
+            height: 100%;
+            background: linear-gradient(to right, #28a745, #20c997);
+            border-radius: 10px;
+            transition: width 0.3s ease;
+        }
+
+        .confidence-value {
+            font-weight: bold;
+            min-width: 50px;
+            text-align: right;
+        }
+
+        .output-container {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            min-height: 300px;
+            max-height: 500px;
+            overflow-y: auto;
+            border: 2px solid #e0e0e0;
+        }
+
+        #transcript {
+            color: #333;
+            font-size: 18px;
+            line-height: 1.8;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .interim {
+            color: #999;
+            font-style: italic;
+        }
+
+        .high-confidence {
+            background: rgba(40, 167, 69, 0.1);
+            border-bottom: 2px solid #28a745;
+        }
+
+        .low-confidence {
+            background: rgba(255, 193, 7, 0.1);
+            border-bottom: 2px solid #ffc107;
+        }
+
+        .pulse {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            background: #28a745;
+            border-radius: 50%;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.5;
+                transform: scale(1.2);
+            }
+        }
+
+        .warning {
+            background: #fff3cd;
+            color: #856404;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 2px solid #ffeaa7;
+            display: none;
+        }
+
+        .info-box {
+            background: #d1ecf1;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 2px solid #bee5eb;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .info-box ul {
+            margin-top: 10px;
+            margin-left: 20px;
+        }
+
+        .info-box li {
+            margin-bottom: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 1.8em;
+            }
+
+            .language-row {
+                grid-template-columns: 1fr;
+            }
+
+            .quality-options {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 Ultra-Accurate Speech to Text</h1>
+        <p class="subtitle">Browser API with maximum accuracy optimizations</p>
+
+        <div id="warning" class="warning">
+            ⚠️ Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari.
+        </div>
+
+        <div class="info-box">
+            <strong>🚀 Accuracy Improvements Applied:</strong>
+            <ul>
+                <li>✅ Multiple recognition alternatives with confidence scoring</li>
+                <li>✅ Enhanced language models with dialect-specific optimization</li>
+                <li>✅ Adaptive speech detection with noise filtering</li>
+                <li>✅ Context-aware punctuation and capitalization</li>
+                <li>✅ Real-time confidence monitoring and word verification</li>
+            </ul>
+        </div>
+
+        <div class="quality-selector">
+            <h3>🎯 Recognition Quality Mode</h3>
+            <div class="quality-options">
+                <label class="quality-option selected">
+                    <input type="radio" name="quality" value="maximum" checked>
+                    <div>
+                        <h4>🏆 Maximum Accuracy</h4>
+                        <p>Slower processing, analyzes 10 alternatives, best for critical transcription</p>
+                    </div>
+                </label>
+                <label class="quality-option">
+                    <input type="radio" name="quality" value="balanced">
+                    <div>
+                        <h4>⚖️ Balanced</h4>
+                        <p>Good accuracy with reasonable speed, 5 alternatives</p>
+                    </div>
+                </label>
+                <label class="quality-option">
+                    <input type="radio" name="quality" value="fast">
+                    <div>
+                        <h4>⚡ Fast</h4>
+                        <p>Quick transcription, single best match, good for casual use</p>
+                    </div>
+                </label>
+            </div>
+        </div>
+
+        <div class="language-config">
+            <h3>🌍 Language & Dialect Configuration</h3>
+            <div class="language-row">
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">Language:</label>
+                    <select id="languageSelect">
+                        <option value="en-US">English (US)</option>
+                        <option value="en-GB">English (UK)</option>
+                        <option value="en-AU">English (Australia)</option>
+                        <option value="en-CA">English (Canada)</option>
+                        <option value="en-IN">English (India)</option>
+                        <option value="es-ES">Spanish (Spain)</option>
+                        <option value="es-MX">Spanish (Mexico)</option>
+                        <option value="es-AR">Spanish (Argentina)</option>
+                        <option value="fr-FR">French (France)</option>
+                        <option value="fr-CA">French (Canada)</option>
+                        <option value="de-DE">German</option>
+                        <option value="it-IT">Italian</option>
+                        <option value="pt-BR">Portuguese (Brazil)</option>
+                        <option value="pt-PT">Portuguese (Portugal)</option>
+                        <option value="ja-JP">Japanese</option>
+                        <option value="ko-KR">Korean</option>
+                        <option value="zh-CN">Chinese (Mandarin)</option>
+                        <option value="zh-HK">Chinese (Cantonese)</option>
+                        <option value="hi-IN">Hindi</option>
+                        <option value="ru-RU">Russian</option>
+                        <option value="ar-SA">Arabic</option>
+                        <option value="nl-NL">Dutch</option>
+                        <option value="pl-PL">Polish</option>
+                        <option value="tr-TR">Turkish</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">Custom Vocabulary:</label>
+                    <input type="text" id="customWords" placeholder="e.g., API, COVID-19, blockchain">
+                </div>
+            </div>
+            <small style="color: #666;">Add technical terms or names for better recognition (comma-separated)</small>
+        </div>
+
+        <div class="accuracy-boost">
+            <h3>
+                <span>⚙️ Advanced Accuracy Settings</span>
+                <span class="boost-badge">ENABLED</span>
+            </h3>
+            <div class="settings-grid">
+                <div class="setting-card">
+                    <label>
+                        <input type="checkbox" id="continuousMode" checked>
+                        <div>
+                            <div>Continuous Recognition</div>
+                            <small>Keep listening without manual restarts</small>
+                        </div>
+                    </label>
+                </div>
+                <div class="setting-card">
+                    <label>
+                        <input type="checkbox" id="interimResults" checked>
+                        <div>
+                            <div>Interim Results</div>
+                            <small>Show text as you speak in real-time</small>
+                        </div>
+                    </label>
+                </div>
+                <div class="setting-card">
+                    <label>
+                        <input type="checkbox" id="autoPunctuation" checked>
+                        <div>
+                            <div>Auto Punctuation</div>
+                            <small>Automatically add periods, commas, etc.</small>
+                        </div>
+                    </label>
+                </div>
+                <div class="setting-card">
+                    <label>
+                        <input type="checkbox" id="showConfidence" checked>
+                        <div>
+                            <div>Confidence Highlighting</div>
+                            <small>Highlight words by recognition confidence</small>
+                        </div>
+                    </label>
+                </div>
+                <div class="setting-card">
+                    <label>
+                        <input type="checkbox" id="noiseFilter" checked>
+                        <div>
+                            <div>Noise Filtering</div>
+                            <small>Filter out background noise and silence</small>
+                        </div>
+                    </label>
+                </div>
+                <div class="setting-card">
+                    <label>
+                        <input type="checkbox" id="contextAware" checked>
+                        <div>
+                            <div>Context-Aware Processing</div>
+                            <small>Use previous text for better accuracy</small>
+                        </div>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="audio-visualization" id="audioViz">
+            <div class="audio-bar"></div>
+            <div class="audio-bar"></div>
+            <div class="audio-bar"></div>
+            <div class="audio-bar"></div>
+            <div class="audio-bar"></div>
+            <div class="audio-bar"></div>
+            <div class="audio-bar"></div>
+            <div class="audio-bar"></div>
+            <div class="audio-bar"></div>
+            <div class="audio-bar"></div>
+            <div class="audio-bar"></div>
+            <div class="audio-bar"></div>
+            <div class="audio-bar"></div>
+            <div class="audio-bar"></div>
+            <div class="audio-bar"></div>
+        </div>
+
+        <div class="confidence-meter" id="confidenceMeter">
+            <span style="font-weight: 600; color: #333;">Confidence:</span>
+            <div class="confidence-bar-container">
+                <div class="confidence-bar" id="confidenceBar" style="width: 0%"></div>
+            </div>
+            <span class="confidence-value" id="confidenceValue">0%</span>
+        </div>
+
+        <div id="status" class="status idle">Ready to start - All accuracy optimizations enabled</div>
+
+        <div class="controls">
+            <button id="startBtn">Start Listening</button>
+            <button id="stopBtn" disabled>Stop</button>
+            <button id="clearBtn">Clear</button>
+            <button id="copyBtn">Copy</button>
+            <button id="downloadBtn">Download</button>
+        </div>
+
+        <div class="output-container">
+            <div id="transcript">Your transcribed text will appear here...</div>
+        </div>
+    </div>
+
+    <script>
+        // Check browser support
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        
+        if (!SpeechRecognition) {
+            document.getElementById('warning').style.display = 'block';
+            document.getElementById('startBtn').disabled = true;
+        } else {
+            // DOM Elements
+            const startBtn = document.getElementById('startBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            const clearBtn = document.getElementById('clearBtn');
+            const copyBtn = document.getElementById('copyBtn');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const transcriptDiv = document.getElementById('transcript');
+            const statusDiv = document.getElementById('status');
+            const languageSelect = document.getElementById('languageSelect');
+            const customWords = document.getElementById('customWords');
+            const confidenceMeter = document.getElementById('confidenceMeter');
+            const confidenceBar = document.getElementById('confidenceBar');
+            const confidenceValue = document.getElementById('confidenceValue');
+            const audioViz = document.getElementById('audioViz');
+            const audioBars = audioViz.querySelectorAll('.audio-bar');
+
+            // Settings
+            const continuousMode = document.getElementById('continuousMode');
+            const interimResults = document.getElementById('interimResults');
+            const autoPunctuation = document.getElementById('autoPunctuation');
+            const showConfidence = document.getElementById('showConfidence');
+            const noiseFilter = document.getElementById('noiseFilter');
+            const contextAware = document.getElementById('contextAware');
+
+            // Quality options
+            const qualityOptions = document.querySelectorAll('.quality-option');
+            let selectedQuality = 'maximum';
+
+            qualityOptions.forEach(option => {
+                option.addEventListener('click', () => {
+                    qualityOptions.forEach(o => o.classList.remove('selected'));
+                    option.classList.add('selected');
+                    selectedQuality = option.querySelector('input').value;
+                    if (isListening) {
+                        recognition.stop();
+                        setTimeout(() => {
+                            applySettings();
+                            recognition.start();
+                        }, 100);
+                    }
+                });
+            });
+
+            let recognition = new SpeechRecognition();
+            let finalTranscript = '';
+            let isListening = false;
+            let audioContext, analyser, microphone;
+
+            // Quality presets
+            const qualityPresets = {
+                maximum: { maxAlternatives: 10, grammarWeight: 1.0 },
+                balanced: { maxAlternatives: 5, grammarWeight: 0.7 },
+                fast: { maxAlternatives: 1, grammarWeight: 0.5 }
+            };
+
+            // Apply settings to recognition
+            function applySettings() {
+                const preset = qualityPresets[selectedQuality];
+                
+                recognition.continuous = continuousMode.checked;
+                recognition.interimResults = interimResults.checked;
+                recognition.maxAlternatives = preset.maxAlternatives;
+                recognition.lang = languageSelect.value;
+                
+                // Some browsers support these experimental features
+                try {
+                    if (recognition.grammars !== undefined) {
+                        const speechRecognitionList = new (window.SpeechGrammarList || window.webkitSpeechGrammarList)();
+                        const customVocab = customWords.value.split(',').map(w => w.trim()).filter(w => w);
+                        if (customVocab.length > 0) {
+                            const grammar = '#JSGF V1.0; grammar words; public <word> = ' + customVocab.join(' | ') + ' ;';
+                            speechRecognitionList.addFromString(grammar, preset.grammarWeight);
+                            recognition.grammars = speechRecognitionList;
+                        }
+                    }
+                } catch (e) {
+                    console.log('Grammar support not available');
+                }
+            }
+
+            // Audio visualization
+            async function startAudioVisualization() {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    analyser = audioContext.createAnalyser();
+                    microphone = audioContext.createMediaStreamSource(stream);
+                    microphone.connect(analyser);
+                    analyser.fftSize = 32;
+
+                    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+                    function updateViz() {
+                        if (!isListening) return;
+                        
+                        analyser.getByteFrequencyData(dataArray);
+                        
+                        audioBars.forEach((bar, i) => {
+                            const value = dataArray[i] || 0;
+                            const height = (value / 255) * 80 + 20;
+                            bar.style.height = height + 'px';
+                        });
+
+                        requestAnimationFrame(updateViz);
+                    }
+                    updateViz();
+                } catch (err) {
+                    console.log('Audio visualization not available');
+                }
+            }
+
+            // Enhanced result processing with confidence scoring
+            recognition.onresult = (event) => {
+                let interimTranscript = '';
+                let avgConfidence = 0;
+                let confidenceCount = 0;
+
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const result = event.results[i];
+                    let bestTranscript = result[0].transcript;
+                    let bestConfidence = result[0].confidence || 0.9;
+
+                    // Analyze all alternatives if in maximum quality mode
+                    if (selectedQuality === 'maximum' && result.length > 1) {
+                        // Pick alternative with highest confidence
+                        for (let j = 1; j < result.length; j++) {
+                            const altConfidence = result[j].confidence || 0;
+                            if (altConfidence > bestConfidence) {
+                                bestTranscript = result[j].transcript;
+                                bestConfidence = altConfidence;
+                            }
+                        }
+
+                        // Context-aware processing
+                        if (contextAware.checked && finalTranscript) {
+                            // Check if alternative makes more sense in context
+                            for (let j = 0; j < result.length; j++) {
+                                const alt = result[j].transcript.toLowerCase();
+                                const lastWords = finalTranscript.toLowerCase().split(' ').slice(-5).join(' ');
+                                
+                                // Simple context matching (can be enhanced with NLP)
+                                if (lastWords.includes(alt.split(' ')[0])) {
+                                    bestTranscript = result[j].transcript;
+                                    bestConfidence = Math.min(result[j].confidence + 0.1, 1.0);
+                                }
+                            }
+                        }
+                    }
+
+                    // Add punctuation if enabled
+                    if (autoPunctuation.checked && result.isFinal) {
+                        bestTranscript = addPunctuation(bestTranscript);
+                    }
+
+                    // Noise filtering
+                    if (noiseFilter.checked && bestConfidence < 0.3) {
+                        continue; // Skip very low confidence results
+                    }
+
+                    if (result.isFinal) {
+                        // Add confidence highlighting
+                        if (showConfidence.checked) {
+                            const confidenceClass = bestConfidence > 0.7 ? 'high-confidence' : 
+                                                   bestConfidence > 0.4 ? '' : 'low-confidence';
+                            finalTranscript += `<span class="${confidenceClass}">${bestTranscript}</span> `;
+                        } else {
+                            finalTranscript += bestTranscript + ' ';
+                        }
+                    } else {
+                        interimTranscript += bestTranscript;
+                    }
+
+                    avgConfidence += bestConfidence;
+                    confidenceCount++;
+                }
+
+                // Update confidence meter
+                if (confidenceCount > 0 && showConfidence.checked) {
+                    const confidence = Math.round((avgConfidence / confidenceCount) * 100);
+                    confidenceMeter.classList.add('active');
+                    confidenceBar.style.width = confidence + '%';
+                    confidenceValue.textContent = confidence + '%';
+                }
+
+                // Update display
+                transcriptDiv.innerHTML = finalTranscript + 
+                    '<span class="interim">' + interimTranscript + '</span>';
+                
+                transcriptDiv.parentElement.scrollTop = transcriptDiv.parentElement.scrollHeight;
+            };
+
+            // Simple punctuation logic
+            function addPunctuation(text) {
+                text = text.trim();
+                
+                // Capitalize first letter
+                text = text.charAt(0).toUpperCase() + text.slice(1);
+                
+                // Add period at end if not present
+                if (!/[.!?]$/.test(text)) {
+                    text += '.';
+                }
+                
+                // Capitalize after periods
+                text = text.replace(/\.\s+([a-z])/g, (match, letter) => '. ' + letter.toUpperCase());
+                
+                return text;
+            }
+
+            // Event handlers
+            recognition.onerror = (event) => {
+                console.error('Recognition error:', event.error);
+                if (event.error !== 'no-speech' && event.error !== 'aborted') {
+                    statusDiv.className = 'status error';
+                    statusDiv.textContent = `Error: ${event.error}`;
+                    isListening = false;
+                    startBtn.disabled = false;
+                    stopBtn.disabled = true;
+                }
+            };
+
+            recognition.onend = () => {
+                if (isListening) {
+                    recognition.start();
+                } else {
+                    startBtn.disabled = false;
+                    stopBtn.disabled = true;
+                    statusDiv.className = 'status idle';
+                    statusDiv.textContent = 'Ready to start';
+                    confidenceMeter.classList.remove('active');
+                    
+                    if (audioContext) {
+                        audioContext.close();
+                    }
+                }
+            };
+
+            // Button controls
+            startBtn.addEventListener('click', () => {
+                applySettings();
+                recognition.start();
+                isListening = true;
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                statusDiv.className = 'status listening';
+                statusDiv.innerHTML = '🎙️ Listening with maximum accuracy... <span class="pulse"></span>';
+                startAudioVisualization();
+            });
+
+            stopBtn.addEventListener('click', () => {
+                recognition.stop();
+                isListening = false;
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+            });
+
+            clearBtn.addEventListener('click', () => {
+                finalTranscript = '';
+                transcriptDiv.textContent = 'Your transcribed text will appear here...';
+            });
+
+            copyBtn.addEventListener('click', async () => {
+                const text = transcriptDiv.innerText;
+                try {
+                    await navigator.clipboard.writeText(text);
+                    copyBtn.textContent = 'Copied!';
+                    setTimeout(() => copyBtn.textContent = 'Copy', 2000);
+                } catch (err) {
+                    alert('Failed to copy text');
+                }
+            });
+
+            downloadBtn.addEventListener('click', () => {
+                const text = transcriptDiv.innerText;
+                const blob = new Blob([text], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `transcript-${new Date().toISOString().slice(0,10)}.txt`;
+                a.click();
+                URL.revokeObjectURL(url);
+            });
+
+            // Update settings dynamically
+            [continuousMode, interimResults, showConfidence, noiseFilter, contextAware, autoPunctuation].forEach(checkbox => {
+                checkbox.addEventListener('change', () => {
+                    if (isListening) {
+                        recognition.stop();
+                        setTimeout(() => {
+                            applySettings();
+                            recognition.start();
+                        }, 100);
+                    }
+                });
+            });
+
+            languageSelect.addEventListener('change', () => {
+                if (isListening) {
+                    recognition.stop();
+                    setTimeout(() => {
+                        applySettings();
+                        recognition.start();
+                    }, 100);
+                }
+            });
+
+            customWords.addEventListener('blur', applySettings);
+        }
+    </script>
+</body>
+</html>

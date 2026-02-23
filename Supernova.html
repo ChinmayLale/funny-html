@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Cosmic Phenomena Simulator</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #0a0a0a, #1a0a2a, #0a1a3a);
+            font-family: 'Courier New', monospace;
+            color: #ffffff;
+            overflow: hidden;
+        }
+
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .ui-panel {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #00ffff;
+            border-radius: 10px;
+            padding: 15px;
+            backdrop-filter: blur(10px);
+            z-index: 100;
+        }
+
+        .controls {
+            top: 20px;
+            left: 20px;
+            min-width: 200px;
+        }
+
+        .scenario-btn {
+            display: block;
+            width: 100%;
+            margin: 5px 0;
+            padding: 10px;
+            background: linear-gradient(45deg, #001a3a, #003366);
+            color: #00ffff;
+            border: 1px solid #00ffff;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: inherit;
+        }
+
+        .scenario-btn:hover {
+            background: linear-gradient(45deg, #003366, #0066cc);
+            box-shadow: 0 0 15px #00ffff;
+            transform: translateY(-2px);
+        }
+
+        .scenario-btn.active {
+            background: linear-gradient(45deg, #0066cc, #0099ff);
+            box-shadow: 0 0 20px #00ffff;
+        }
+
+        .info-panel {
+            top: 20px;
+            right: 20px;
+            max-width: 300px;
+        }
+
+        .status-panel {
+            bottom: 20px;
+            left: 20px;
+            min-width: 250px;
+        }
+
+        .parameter-control {
+            margin: 10px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .slider {
+            width: 100px;
+            margin-left: 10px;
+        }
+
+        .stats {
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .glow-text {
+            text-shadow: 0 0 10px #00ffff;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 18px;
+            color: #00ffff;
+            text-align: center;
+        }
+
+        .instructions {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 11px;
+            max-width: 200px;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div class="loading" id="loading">
+            <div class="glow-text">🌌 Initializing Cosmic Simulator 🌌</div>
+            <div>Loading Three.js...</div>
+        </div>
+
+        <div class="ui-panel controls" style="display: none;">
+            <h3 class="glow-text">🚀 Cosmic Scenarios</h3>
+            <button class="scenario-btn active" onclick="setScenario('supernova')">
+                💥 Supernova Explosion
+            </button>
+            <button class="scenario-btn" onclick="setScenario('pulsar')">
+                🌀 Pulsar Magnetosphere
+            </button>
+            <button class="scenario-btn" onclick="setScenario('asteroid')">
+                🪨 Asteroid Belt
+            </button>
+            <button class="scenario-btn" onclick="setScenario('comet')">
+                ☄️ Comet Tail Formation
+            </button>
+            
+            <div class="parameter-control">
+                <span>Speed:</span>
+                <input type="range" class="slider" min="0.1" max="3" step="0.1" value="1" onchange="setSpeed(this.value)">
+            </div>
+            <div class="parameter-control">
+                <span>Particles:</span>
+                <input type="range" class="slider" min="1000" max="10000" step="500" value="5000" onchange="setParticleCount(this.value)">
+            </div>
+        </div>
+
+        <div class="ui-panel info-panel" style="display: none;">
+            <h3 class="glow-text" id="scenarioTitle">Supernova Explosion</h3>
+            <div class="stats" id="scenarioInfo">
+                A massive star (8+ solar masses) undergoes core collapse when nuclear fuel is exhausted. 
+                The core collapses in milliseconds, then rebounds in a catastrophic explosion that can 
+                outshine an entire galaxy for months.
+            </div>
+        </div>
+
+        <div class="ui-panel status-panel" style="display: none;">
+            <h4 class="glow-text">📊 Live Data</h4>
+            <div class="stats">
+                <div>Time: <span id="simTime">0.0</span>s</div>
+                <div>Active Particles: <span id="particleCount">0</span></div>
+                <div>Energy Released: <span id="energyLevel">0</span> J</div>
+                <div>Expansion Velocity: <span id="velocity">0</span> km/s</div>
+                <div>Temperature: <span id="temperature">0</span> K</div>
+            </div>
+        </div>
+
+        <div class="instructions">
+            <strong>Controls:</strong><br>
+            🖱️ Drag to rotate<br>
+            🔄 Scroll to zoom<br>
+            ⌨️ WASD to move<br>
+            Space to pause
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        let scene, camera, renderer, controls;
+        let particleSystem;
+        let currentScenario = 'supernova';
+        let animationSpeed = 1;
+        let maxParticles = 5000;
+        let simTime = 0;
+        let isPaused = false;
+
+        // Particle systems for each scenario
+        let particles = [];
+        let particleGeometry, particleMaterial;
+
+        // Scenario-specific objects
+        let star, neutronStar, asteroids = [], comet, sun;
+        let magneticFieldLines = [];
+
+        const scenarios = {
+            supernova: {
+                title: "💥 Supernova Explosion",
+                info: "A massive star undergoes core collapse when nuclear fuel is exhausted. The core collapses in milliseconds, then rebounds in a catastrophic explosion that can outshine an entire galaxy for months."
+            },
+            pulsar: {
+                title: "🌀 Pulsar Magnetosphere",
+                info: "A rapidly spinning neutron star with an intense magnetic field. Charged particles are accelerated along magnetic field lines, creating beams of radiation that sweep across space like a cosmic lighthouse."
+            },
+            asteroid: {
+                title: "🪨 Asteroid Belt",
+                info: "Thousands of rocky fragments orbit between Mars and Jupiter. These remnants from the early solar system are influenced by gravitational perturbations, creating complex orbital dynamics."
+            },
+            comet: {
+                title: "☄️ Comet Tail Formation",
+                info: "As a comet approaches the Sun, solar radiation and solar wind strip material from its nucleus, creating spectacular tails of gas and dust that always point away from the Sun."
+            }
+        };
+
+        function init() {
+            // Scene setup
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 10000);
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setClearColor(0x000000, 1);
+            document.getElementById('container').appendChild(renderer.domElement);
+
+            // Camera position
+            camera.position.set(0, 0, 100);
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.1);
+            scene.add(ambientLight);
+
+            // Create starfield background
+            createStarfield();
+
+            // Initialize particle system
+            initParticleSystem();
+
+            // Start with supernova
+            initSupernova();
+
+            // Simple mouse controls
+            setupControls();
+
+            // Hide loading, show UI
+            document.getElementById('loading').style.display = 'none';
+            document.querySelectorAll('.ui-panel').forEach(panel => {
+                panel.style.display = 'block';
+            });
+
+            // Start animation loop
+            animate();
+        }
+
+        function createStarfield() {
+            const starGeometry = new THREE.BufferGeometry();
+            const starMaterial = new THREE.PointsMaterial({
+                color: 0xffffff,
+                size: 1,
+                transparent: true,
+                opacity: 0.8
+            });
+
+            const starVertices = [];
+            for (let i = 0; i < 1000; i++) {
+                const x = (Math.random() - 0.5) * 2000;
+                const y = (Math.random() - 0.5) * 2000;
+                const z = (Math.random() - 0.5) * 2000;
+                starVertices.push(x, y, z);
+            }
+
+            starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
+            const stars = new THREE.Points(starGeometry, starMaterial);
+            scene.add(stars);
+        }
+
+        function initParticleSystem() {
+            particleGeometry = new THREE.BufferGeometry();
+            particleMaterial = new THREE.PointsMaterial({
+                size: 2,
+                transparent: true,
+                opacity: 0.8,
+                vertexColors: true,
+                blending: THREE.AdditiveBlending
+            });
+
+            // Initialize empty arrays
+            const positions = new Float32Array(maxParticles * 3);
+            const colors = new Float32Array(maxParticles * 3);
+            const velocities = new Float32Array(maxParticles * 3);
+
+            particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            particleGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            particleGeometry.setAttribute('velocity', new THREE.BufferAttribute(velocities, 3));
+
+            particleSystem = new THREE.Points(particleGeometry, particleMaterial);
+            scene.add(particleSystem);
+        }
+
+        function initSupernova() {
+            clearScene();
+            
+            // Create central star
+            const starGeometry = new THREE.SphereGeometry(5, 32, 32);
+            const starMaterial = new THREE.MeshBasicMaterial({
+                color: 0xff6600,
+                transparent: true,
+                opacity: 0.8
+            });
+            star = new THREE.Mesh(starGeometry, starMaterial);
+            scene.add(star);
+
+            // Initialize explosion particles
+            const positions = particleGeometry.attributes.position.array;
+            const colors = particleGeometry.attributes.color.array;
+            const velocities = particleGeometry.attributes.velocity.array;
+
+            for (let i = 0; i < maxParticles; i++) {
+                const i3 = i * 3;
+                
+                // Start all particles at center
+                positions[i3] = 0;
+                positions[i3 + 1] = 0;
+                positions[i3 + 2] = 0;
+
+                // Random explosion direction
+                const phi = Math.random() * Math.PI * 2;
+                const theta = Math.random() * Math.PI;
+                const speed = 0.1 + Math.random() * 0.5;
+
+                velocities[i3] = Math.sin(theta) * Math.cos(phi) * speed;
+                velocities[i3 + 1] = Math.sin(theta) * Math.sin(phi) * speed;
+                velocities[i3 + 2] = Math.cos(theta) * speed;
+
+                // Hot colors for explosion
+                colors[i3] = 1; // Red
+                colors[i3 + 1] = 0.5 + Math.random() * 0.5; // Green
+                colors[i3 + 2] = Math.random() * 0.5; // Blue
+            }
+
+            particleGeometry.attributes.position.needsUpdate = true;
+            particleGeometry.attributes.color.needsUpdate = true;
+        }
+
+        function initPulsar() {
+            clearScene();
+
+            // Create neutron star
+            const neutronGeometry = new THREE.SphereGeometry(2, 32, 32);
+            const neutronMaterial = new THREE.MeshBasicMaterial({
+                color: 0x00ffff,
+                transparent: true,
+                opacity: 0.9
+            });
+            neutronStar = new THREE.Mesh(neutronGeometry, neutronMaterial);
+            scene.add(neutronStar);
+
+            // Create magnetic field lines
+            createMagneticFieldLines();
+
+            // Initialize charged particles
+            const positions = particleGeometry.attributes.position.array;
+            const colors = particleGeometry.attributes.color.array;
+            const velocities = particleGeometry.attributes.velocity.array;
+
+            for (let i = 0; i < maxParticles; i++) {
+                const i3 = i * 3;
+                
+                // Particles start near the pulsar
+                const r = 5 + Math.random() * 20;
+                const phi = Math.random() * Math.PI * 2;
+                const theta = Math.random() * Math.PI;
+
+                positions[i3] = r * Math.sin(theta) * Math.cos(phi);
+                positions[i3 + 1] = r * Math.sin(theta) * Math.sin(phi);
+                positions[i3 + 2] = r * Math.cos(theta);
+
+                // Initial velocities for spiral motion
+                velocities[i3] = Math.random() * 0.1 - 0.05;
+                velocities[i3 + 1] = Math.random() * 0.1 - 0.05;
+                velocities[i3 + 2] = Math.random() * 0.1 - 0.05;
+
+                // Blue-white colors for charged particles
+                colors[i3] = 0.5 + Math.random() * 0.5;
+                colors[i3 + 1] = 0.5 + Math.random() * 0.5;
+                colors[i3 + 2] = 1;
+            }
+
+            particleGeometry.attributes.position.needsUpdate = true;
+            particleGeometry.attributes.color.needsUpdate = true;
+        }
+
+        function createMagneticFieldLines() {
+            const fieldLineMaterial = new THREE.LineBasicMaterial({
+                color: 0x00ff00,
+                transparent: true,
+                opacity: 0.3
+            });
+
+            for (let i = 0; i < 20; i++) {
+                const points = [];
+                const angle = (i / 20) * Math.PI * 2;
+                
+                for (let j = 0; j < 50; j++) {
+                    const t = j / 50;
+                    const r = 5 + t * 40;
+                    const z = Math.sin(t * Math.PI * 4) * 10;
+                    
+                    points.push(new THREE.Vector3(
+                        r * Math.cos(angle + t),
+                        r * Math.sin(angle + t),
+                        z
+                    ));
+                }
+
+                const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                const line = new THREE.Line(geometry, fieldLineMaterial);
+                magneticFieldLines.push(line);
+                scene.add(line);
+            }
+        }
+
+        function initAsteroidBelt() {
+            clearScene();
+
+            // Create sun at center
+            const sunGeometry = new THREE.SphereGeometry(3, 32, 32);
+            const sunMaterial = new THREE.MeshBasicMaterial({
+                color: 0xffff00,
+                transparent: true,
+                opacity: 0.8
+            });
+            sun = new THREE.Mesh(sunGeometry, sunMaterial);
+            scene.add(sun);
+
+            // Create asteroids
+            asteroids = [];
+            for (let i = 0; i < 200; i++) {
+                const asteroidGeometry = new THREE.SphereGeometry(0.1 + Math.random() * 0.5, 8, 8);
+                const asteroidMaterial = new THREE.MeshBasicMaterial({
+                    color: new THREE.Color(0.5 + Math.random() * 0.3, 0.3 + Math.random() * 0.3, 0.2 + Math.random() * 0.2)
+                });
+                const asteroid = new THREE.Mesh(asteroidGeometry, asteroidMaterial);
+
+                // Orbital parameters
+                const distance = 20 + Math.random() * 30;
+                const angle = Math.random() * Math.PI * 2;
+                asteroid.position.set(
+                    distance * Math.cos(angle),
+                    (Math.random() - 0.5) * 5,
+                    distance * Math.sin(angle)
+                );
+
+                asteroid.userData = {
+                    distance: distance,
+                    angle: angle,
+                    speed: 0.001 + Math.random() * 0.002,
+                    inclination: (Math.random() - 0.5) * 0.2
+                };
+
+                asteroids.push(asteroid);
+                scene.add(asteroid);
+            }
+
+            // Initialize dust particles
+            const positions = particleGeometry.attributes.position.array;
+            const colors = particleGeometry.attributes.color.array;
+            const velocities = particleGeometry.attributes.velocity.array;
+
+            for (let i = 0; i < maxParticles; i++) {
+                const i3 = i * 3;
+                
+                const distance = 15 + Math.random() * 40;
+                const angle = Math.random() * Math.PI * 2;
+                
+                positions[i3] = distance * Math.cos(angle);
+                positions[i3 + 1] = (Math.random() - 0.5) * 8;
+                positions[i3 + 2] = distance * Math.sin(angle);
+
+                velocities[i3] = 0;
+                velocities[i3 + 1] = 0;
+                velocities[i3 + 2] = 0;
+
+                // Rocky colors
+                colors[i3] = 0.4 + Math.random() * 0.3;
+                colors[i3 + 1] = 0.3 + Math.random() * 0.2;
+                colors[i3 + 2] = 0.2 + Math.random() * 0.1;
+            }
+
+            particleGeometry.attributes.position.needsUpdate = true;
+            particleGeometry.attributes.color.needsUpdate = true;
+        }
+
+        function initComet() {
+            clearScene();
+
+            // Create sun
+            const sunGeometry = new THREE.SphereGeometry(5, 32, 32);
+            const sunMaterial = new THREE.MeshBasicMaterial({
+                color: 0xffff00
+            });
+            sun = new THREE.Mesh(sunGeometry, sunMaterial);
+            scene.add(sun);
+
+            // Create comet nucleus
+            const cometGeometry = new THREE.SphereGeometry(1, 16, 16);
+            const cometMaterial = new THREE.MeshBasicMaterial({
+                color: 0x666666
+            });
+            comet = new THREE.Mesh(cometGeometry, cometMaterial);
+            comet.position.set(50, 0, 0);
+            scene.add(comet);
+
+            // Initialize tail particles
+            const positions = particleGeometry.attributes.position.array;
+            const colors = particleGeometry.attributes.color.array;
+            const velocities = particleGeometry.attributes.velocity.array;
+
+            for (let i = 0; i < maxParticles; i++) {
+                const i3 = i * 3;
+                
+                // Start particles at comet position
+                positions[i3] = 50;
+                positions[i3 + 1] = 0;
+                positions[i3 + 2] = 0;
+
+                velocities[i3] = 0;
+                velocities[i3 + 1] = 0;
+                velocities[i3 + 2] = 0;
+
+                // Blue-white colors for ice/gas
+                colors[i3] = 0.7 + Math.random() * 0.3;
+                colors[i3 + 1] = 0.8 + Math.random() * 0.2;
+                colors[i3 + 2] = 1;
+            }
+
+            particleGeometry.attributes.position.needsUpdate = true;
+            particleGeometry.attributes.color.needsUpdate = true;
+        }
+
+        function updateSupernova() {
+            const positions = particleGeometry.attributes.position.array;
+            const velocities = particleGeometry.attributes.velocity.array;
+
+            for (let i = 0; i < maxParticles; i++) {
+                const i3 = i * 3;
+                
+                positions[i3] += velocities[i3] * animationSpeed;
+                positions[i3 + 1] += velocities[i3 + 1] * animationSpeed;
+                positions[i3 + 2] += velocities[i3 + 2] * animationSpeed;
+            }
+
+            particleGeometry.attributes.position.needsUpdate = true;
+
+            // Expand and fade the star
+            if (star) {
+                star.scale.multiplyScalar(1.01);
+                star.material.opacity *= 0.999;
+            }
+        }
+
+        function updatePulsar() {
+            const positions = particleGeometry.attributes.position.array;
+            const velocities = particleGeometry.attributes.velocity.array;
+
+            // Rotate neutron star
+            if (neutronStar) {
+                neutronStar.rotation.y += 0.1 * animationSpeed;
+            }
+
+            // Rotate magnetic field lines
+            magneticFieldLines.forEach(line => {
+                line.rotation.y += 0.05 * animationSpeed;
+            });
+
+            // Update charged particles along magnetic field lines
+            for (let i = 0; i < maxParticles; i++) {
+                const i3 = i * 3;
+                
+                const x = positions[i3];
+                const y = positions[i3 + 1];
+                const z = positions[i3 + 2];
+                
+                const r = Math.sqrt(x * x + y * y + z * z);
+                const theta = Math.atan2(y, x);
+                
+                // Magnetic field force
+                velocities[i3] += (-y * 0.001) * animationSpeed;
+                velocities[i3 + 1] += (x * 0.001) * animationSpeed;
+                velocities[i3 + 2] += (Math.sin(theta * 4) * 0.001) * animationSpeed;
+                
+                // Apply velocity
+                positions[i3] += velocities[i3] * animationSpeed;
+                positions[i3 + 1] += velocities[i3 + 1] * animationSpeed;
+                positions[i3 + 2] += velocities[i3 + 2] * animationSpeed;
+                
+                // Reset particles that go too far
+                if (r > 100) {
+                    positions[i3] = (Math.random() - 0.5) * 10;
+                    positions[i3 + 1] = (Math.random() - 0.5) * 10;
+                    positions[i3 + 2] = (Math.random() - 0.5) * 10;
+                    velocities[i3] = 0;
+                    velocities[i3 + 1] = 0;
+                    velocities[i3 + 2] = 0;
+                }
+            }
+
+            particleGeometry.attributes.position.needsUpdate = true;
+        }
+
+        function updateAsteroidBelt() {
+            // Update asteroid orbits
+            asteroids.forEach(asteroid => {
+                asteroid.userData.angle += asteroid.userData.speed * animationSpeed;
+                asteroid.position.x = asteroid.userData.distance * Math.cos(asteroid.userData.angle);
+                asteroid.position.z = asteroid.userData.distance * Math.sin(asteroid.userData.angle);
+                asteroid.position.y = Math.sin(asteroid.userData.angle * 3) * asteroid.userData.inclination * 5;
+                asteroid.rotation.x += 0.01;
+                asteroid.rotation.y += 0.02;
+            });
+        }
+
+        function updateComet() {
+            if (!comet) return;
+
+            // Move comet in elliptical orbit
+            const time = simTime * 0.01;
+            comet.position.x = 50 * Math.cos(time);
+            comet.position.z = 30 * Math.sin(time);
+
+            const positions = particleGeometry.attributes.position.array;
+            const velocities = particleGeometry.attributes.velocity.array;
+
+            const cometPos = comet.position;
+            const sunPos = sun.position;
+            const distance = cometPos.distanceTo(sunPos);
+
+            // Solar wind direction (away from sun)
+            const windDirection = new THREE.Vector3().subVectors(cometPos, sunPos).normalize();
+
+            for (let i = 0; i < maxParticles; i++) {
+                const i3 = i * 3;
+                
+                // Emit particles from comet
+                if (Math.random() < 0.01) {
+                    positions[i3] = cometPos.x + (Math.random() - 0.5) * 2;
+                    positions[i3 + 1] = cometPos.y + (Math.random() - 0.5) * 2;
+                    positions[i3 + 2] = cometPos.z + (Math.random() - 0.5) * 2;
+
+                    // Solar wind velocity
+                    const intensity = Math.max(0.1, 100 / distance);
+                    velocities[i3] = windDirection.x * intensity;
+                    velocities[i3 + 1] = windDirection.y * intensity;
+                    velocities[i3 + 2] = windDirection.z * intensity;
+                }
+
+                // Update positions
+                positions[i3] += velocities[i3] * animationSpeed;
+                positions[i3 + 1] += velocities[i3 + 1] * animationSpeed;
+                positions[i3 + 2] += velocities[i3 + 2] * animationSpeed;
+            }
+
+            particleGeometry.attributes.position.needsUpdate = true;
+        }
+
+        function updateStats() {
+            document.getElementById('simTime').textContent = simTime.toFixed(1);
+            document.getElementById('particleCount').textContent = maxParticles;
+            
+            // Scenario-specific stats
+            switch(currentScenario) {
+                case 'supernova':
+                    document.getElementById('energyLevel').textContent = (simTime * 1e44).toExponential(2);
+                    document.getElementById('velocity').textContent = Math.floor(simTime * 10000);
+                    document.getElementById('temperature').textContent = (1e9 - simTime * 1e7).toExponential(2);
+                    break;
+                case 'pulsar':
+                    document.getElementById('energyLevel').textContent = (1e38).toExponential(2);
+                    document.getElementById('velocity').textContent = Math.floor(30000);
+                    document.getElementById('temperature').textContent = (1e6).toExponential(2);
+                    break;
+                // Add more cases as needed
+            }
+        }
+
+        function clearScene() {
+            // Remove scenario-specific objects
+            if (star) { scene.remove(star); star = null; }
+            if (neutronStar) { scene.remove(neutronStar); neutronStar = null; }
+            if (comet) { scene.remove(comet); comet = null; }
+            if (sun) { scene.remove(sun); sun = null; }
+            
+            asteroids.forEach(asteroid => scene.remove(asteroid));
+            asteroids = [];
+            
+            magneticFieldLines.forEach(line => scene.remove(line));
+            magneticFieldLines = [];
+        }
+
+        function setScenario(scenario) {
+            currentScenario = scenario;
+            simTime = 0;
+            
+            // Update UI
+            document.querySelectorAll('.scenario-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            document.getElementById('scenarioTitle').textContent = scenarios[scenario].title;
+            document.getElementById('scenarioInfo').textContent = scenarios[scenario].info;
+
+            // Initialize scenario
+            switch(scenario) {
+                case 'supernova': initSupernova(); break;
+                case 'pulsar': initPulsar(); break;
+                case 'asteroid': initAsteroidBelt(); break;
+                case 'comet': initComet(); break;
+            }
+        }
+
+        function setSpeed(speed) {
+            animationSpeed = parseFloat(speed);
+        }
+
+        function setParticleCount(count) {
+            maxParticles = parseInt(count);
+        }
+
+        function setupControls() {
+            let mouseX = 0, mouseY = 0;
+            let isMouseDown = false;
+
+            renderer.domElement.addEventListener('mousedown', (e) => {
+                isMouseDown = true;
+                mouseX = e.clientX;
+                mouseY = e.clientY;
+            });
+
+            renderer.domElement.addEventListener('mouseup', () => {
+                isMouseDown = false;
+            });
+
+            renderer.domElement.addEventListener('mousemove', (e) => {
+                if (isMouseDown) {
+                    const deltaX = e.clientX - mouseX;
+                    const deltaY = e.clientY - mouseY;
+                    
+                    scene.rotation.y += deltaX * 0.01;
+                    scene.rotation.x += deltaY * 0.01;
+                    
+                    mouseX = e.clientX;
+                    mouseY = e.clientY;
+                }
+            });
+
+            renderer.domElement.addEventListener('wheel', (e) => {
+                camera.position.z += e.deltaY * 0.1;
+                camera.position.z = Math.max(10, Math.min
